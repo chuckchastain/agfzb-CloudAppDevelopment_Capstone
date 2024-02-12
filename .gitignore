@@ -141,3 +141,5 @@ server/djangoapp/migrations/
 server/djangoapp/migrations/
 
 server/db.sqlite3
+
+functions/node_modules
