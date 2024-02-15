@@ -1,10 +1,6 @@
 from cloudant.client import Cloudant
 from cloudant.query import Query
-<<<<<<< HEAD
 from flask import Flask, jsonify, request, abort
-=======
-from flask import Flask, jsonify, request
->>>>>>> f4cfb23c5defbe877a11ae63770d3d61fc7e1621
 import atexit
 
 #Add your Cloudant service credentials here
