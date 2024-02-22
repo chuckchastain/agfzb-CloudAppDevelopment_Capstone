@@ -11,19 +11,28 @@ from ibm_watson.natural_language_understanding_v1 import Features, SentimentOpti
 # e.g., response = requests.get(url, params=params, headers={'Content-Type': 'application/json'},
 #                                     auth=HTTPBasicAuth('apikey', api_key))
 def get_request(url, **kwargs):
-    print(kwargs)
+    print(f"url: {url}")
+    print(f"kwargs: {kwargs}")
+    # If argument contain API KEY
+    api_key = kwargs.get("api_key")
+    print("GET from {} ".format(url))
     try:
-        if "apikey" in kwargs:
-            response = requests.get(url, headers={
-                                    'Content-Type': 'application/json'}, params=kwargs, auth=HTTPBasicAuth("apikey", kwargs["apikey"]))
+        if api_key:
+            params = dict()
+            params["text"] = kwargs["text"]
+            params["version"] = kwargs["version"]
+            params["features"] = kwargs["features"]
+            params["return_analyzed_text"] = kwargs["return_analyzed_text"]
+            response = requests.get(url, params=params, headers={'Content-Type': 'application/json'},
+                                    auth=HTTPBasicAuth('apikey', api_key))
         else:
-            response = requests.get(
-                url, headers={'Content-Type': 'application/json'}, params=kwargs)
-        status_code = response.status_code
-        print("With status {} ".format(status_code))
-        json_data = json.loads(response.text)
-    except Exception as e:
-        print("Error ", e)
+            # Call get method of requests library with URL and parameters
+            response = requests.get(url, params=kwargs)
+            print(f"Response: {response}")
+    except:
+        # If any error occurs
+        print("Network exception occurred")
+
     status_code = response.status_code
     print("With status {} ".format(status_code))
     json_data = json.loads(response.text)
@@ -31,6 +40,36 @@ def get_request(url, **kwargs):
 
 # Create a `post_request` to make HTTP POST requests
 # e.g., response = requests.post(url, params=kwargs, json=payload)
+"""
+def post_request(url, payload, **kwargs):
+    print(kwargs)
+    print("POST to {} ".format(url))
+    #url="http://localhost:5000/api/post_review"
+    print(payload)
+    response = requests.post(url, params=kwargs, json=payload)
+    status_code = response.status_code
+    print("With status {} ".format(status_code))
+    json_data = json.loads(response.text)
+    return json_data
+
+"""
+
+def post_request(url, json_payload, **kwargs):
+    try:
+        print("POST to {}".format(url))
+        print("Payload:", json_payload)
+        
+        #headers = {'Content-Type': 'application/json'}
+        response = requests.post(url, json=json_payload, params=kwargs)
+        
+        status_code = response.status_code
+        print("post_request With status {}".format(status_code))  
+        response.raise_for_status()  # Raise an exception for bad responses (4xx or 5xx)
+
+    except requests.RequestException as e:
+        print(f"Error making POST request: {e}")
+        response = None
+    return response
 
 
 # Create a get_dealers_from_cf method to get dealers from a cloud function
@@ -40,7 +79,11 @@ def get_request(url, **kwargs):
 def get_dealers_from_cf(url, **kwargs):
     results = []
     # Call get_request with a URL parameter
-    json_result = get_request(url)
+    state = kwargs.get("state")
+    if state:
+        json_result = get_request(url, state=state)
+    else:
+        json_result = get_request(url)
     if json_result:
         # Get the row list in JSON as dealers
         dealers = json_result
@@ -64,28 +107,68 @@ def get_dealers_from_cf(url, **kwargs):
 # - Call get_request() with specified arguments
 # - Parse JSON results into a DealerView object list
 
-def get_dealer_from_cf_by_id(url, id):
-    print("get_dealer_from_cf_by_id")
-    print(url)
-    print(id)
+def get_dealer_by_id_from_cf(url, id):
     json_result = get_request(url, id=id)
-    if json_result:
-        dealer = json_result["body"][0]
-        dealer_obj = CarDealer(address=dealer["address"], city=dealer["city"], full_name=dealer["full_name"],
-                               id=dealer["id"], lat=dealer["lat"], long=dealer["long"],
-                               short_name=dealer["short_name"],
-                               st=dealer["st"], zip=dealer["zip"])
-    return dealer_obj
+    print('json_result from line 116',json_result)
+    
+    if json_result and isinstance(json_result, list) and json_result:
+        dealers = json_result
+        dealer_doc = dealers[0]
+        dealer_obj = CarDealer(address=dealer_doc["address"], city=dealer_doc["city"],
+                                id=dealer_doc["id"], lat=dealer_doc["lat"], long=dealer_doc["long"],  
+                                short_name=dealer_doc["short_name"],full_name=dealer_doc["full_name"], 
+                                st=dealer_doc["st"], zip=dealer_doc["zip"])
+        return dealer_obj
+    return None
 
-
-def get_dealer_reviews_from_cf(url, id):
-    print("get_dealer_reviews_from_cf")
-    print(url)
-    print(id)
+def get_dealer_reviews_from_cf(url, **kwargs):
     results = []
-    json_result = get_request(url, id=id)
+    id = kwargs.get("id")
+    if id:
+        json_result = get_request(url, id=id)
+    else:
+        json_result = get_request(url)
+    # print(json_result)
     if json_result:
-        reviews = json_result["body"]
+        print("line 136",json_result)
+        reviews = json_result["data"]["docs"]
+        for dealer_review in reviews:
+            review_obj = DealerReview(dealership=dealer_review["dealership"],
+                                   name=dealer_review["name"],
+                                   purchase=dealer_review["purchase"],
+                                   review=dealer_review["review"])
+            if "id" in dealer_review:
+                review_obj.id = dealer_review["id"]
+            if "purchase_date" in dealer_review:
+                review_obj.purchase_date = dealer_review["purchase_date"]
+            if "car_make" in dealer_review:
+                review_obj.car_make = dealer_review["car_make"]
+            if "car_model" in dealer_review:
+                review_obj.car_model = dealer_review["car_model"]
+            if "car_year" in dealer_review:
+                review_obj.car_year = dealer_review["car_year"]
+            
+            sentiment = analyze_review_sentiments(review_obj.review)
+            print(sentiment)
+            review_obj.sentiment = sentiment
+            results.append(review_obj)
+
+    return results
+
+def get_dealer_reviews_from_cf(url, **kwargs):
+    print("get_dealer_reviews_from_cf")
+    print(f"url: {url}")
+    print(f"kwargs: {kwargs}")
+    results = []
+    id = kwargs.get("id")
+    if id:
+        json_result = get_request(url, id=id)
+    else:
+        json_result = get_request(url)
+    print(f"json_result from get_dealer_reviews_from_cf: {json_result}")
+    if json_result:
+        reviews = json_result['data']['docs']
+        print(f"REVIEW: {reviews}")
         for review in reviews:
             if review["purchase"]:
                 review_obj = DealerReview(

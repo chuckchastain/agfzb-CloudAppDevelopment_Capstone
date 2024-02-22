@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.timezone import now
+import json
 
 
 # Create your models here.
@@ -30,19 +31,19 @@ class CarModel(models.Model):
             ("SEDAN", "Sedan"), ("SUV", "SUV"), ("WAGON", "Wagon")
         )
 
-    make = models.ForeignKey(CarMake, on_delete=models.CASCADE)
+    car_make = models.ForeignKey(CarMake, on_delete=models.CASCADE)
     name = models.CharField(null=False, max_length=50)
     type = models.CharField(max_length=50, choices=CARTYPES)
     year = models.DateField()
-    dealer_id = models.IntegerField()
+    id = models.IntegerField(primary_key=True)
     
 
     def __str__(self):
         return "Name: " + self.name + \
-                " Make Name: "+ self.make.name + \
+                " Make Name: "+ self.car_make.name + \
                 " Type: " + self.type + \
                 " Year: " + str(self.year)+ \
-                " Dealer ID: " + str(self.dealer_id)
+                " Dealer ID: " + str(self.id)
                 
 # <HINT> Create a plain Python class `CarDealer` to hold dealer data
 class CarDealer:
@@ -87,3 +88,6 @@ class DealerReview:
     def __str__(self):
         return "Review: " + self.review +\
                 " Sentiment: " + self.sentiment
+                
+    def to_json(self):
+        return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)

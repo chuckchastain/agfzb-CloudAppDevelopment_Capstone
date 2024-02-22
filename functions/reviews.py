@@ -18,6 +18,7 @@ app = Flask(__name__)
 
 @app.route('/api/get_reviews', methods=['GET'])
 def get_reviews():
+    print("get_reviews")
     dealership_id = request.args.get('id')
 
     # Check if "id" parameter is missing
