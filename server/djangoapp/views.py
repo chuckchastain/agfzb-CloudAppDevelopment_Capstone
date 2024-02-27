@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Create an `about` view to render a static about page
 def about(request):
-    context = [{}]
+    context = {}
     if request.method == 'GET':
         return render(request, 'djangoapp/about.html', context)
 
@@ -89,7 +89,7 @@ def registration_request(request):
             user.is_staff = True
             user.save()
             login(request, user)
-            return redirect("/djangoapp:Index")
+            return redirect("djangoapp:index")
         else:
             context['message'] = "User already exists."
             return redirect('djangoapp:registration')
@@ -118,39 +118,35 @@ def get_dealerships(request):
 
 
 def get_dealer_details(request, id):
-    print("enter get_dealer_details")
+    #print("enter get_dealer_details")
     if request.method == "GET":
         context = {}
-        print(f"get_dealer_details request is: {request}")
-        print(f"id is: {id}")
+        #print(f"get_dealer_details request is: {request}")
+        #print(f"id is: {id}")
         dealer_url = "http://localhost:3000/dealerships/get"
-        print("calling get_dealer_by_id_from_cf")
+        #print("calling get_dealer_by_id_from_cf")
         dealer = get_dealer_by_id_from_cf(dealer_url, id=id)
-        print(f"Dealer is: {dealer}")
+        #print(f"Dealer is: {dealer}")
         context["dealer"] = dealer
     
         review_url = "http://localhost:5000/api/get_reviews"
-        print("calling get_dealer_reviews from_cf")
+        #print("calling get_dealer_reviews from_cf")
         reviews = get_dealer_reviews_from_cf(review_url, id=id)
-        print(f"Reviews list is: {reviews}")
+        #print(f"Reviews list is: {reviews}")
         context["reviews"] = reviews
-        print('context for dealer_details', context)
+        #print('context for dealer_details', context)
         return render(request, 'djangoapp/dealer_details.html', context)
     
     
 
-# Create a `add_review` view to submit a review
-# def add_review(request, dealer_id):
-# ...
-"""""
 def add_review(request, id):
     context = {}
-    url = "http://localhost:3000/dealerships/get"
-    dealer = get_dealer_by_id_from_cf(url, id=id)
+    dealer_url = "http://localhost:3000/dealerships/get"
+    dealer = get_dealer_by_id_from_cf(dealer_url, id=id)
     context["dealer"] = dealer
     if request.method == 'GET':
         # Get cars for the dealer
-        cars = CarModel.objects.all()
+        cars = CarModel.objects.filter(dealerId=id)
         print(cars)
         context["cars"] = cars
         
@@ -158,10 +154,13 @@ def add_review(request, id):
     elif request.method == 'POST':
         if request.user.is_authenticated:
             username = request.user.username
-            print(request.POST)
-            payload = dict()
+            print("Request.POST: ", request.POST)
             car_id = request.POST["car"]
             car = CarModel.objects.get(pk=car_id)
+            car_make = car.car_make.name if car else ""
+            print("car_make: ", car_make)
+            payload = dict()
+             
             payload["time"] = datetime.utcnow().isoformat()
             payload["name"] = username
             payload["dealership"] = id
@@ -172,78 +171,13 @@ def add_review(request, id):
                 if request.POST["purchasecheck"] == 'on':
                     payload["purchase"] = True
             payload["purchase_date"] = request.POST["purchasedate"]
-            payload["car_make"] = car.car_make
+            payload["car_make"] = car_make
             payload["car_model"] = car.name
             payload["car_year"] = int(car.year.strftime("%Y"))
 
-            new_payload = {}
-            new_payload["review"] = payload
+            #new_payload = {}
+            #new_payload["review"] = payload
+            
             review_post_url = "http://localhost:5000/api/post_review"
-
-            review = {
-                "id":id,
-                "time":datetime.utcnow().isoformat(),
-                "name":request.user.username,  # Assuming you want to use the authenticated user's name
-                "dealership" :id,                
-                "review": request.POST["content"],  # Extract the review from the POST request
-                "purchase": True,  # Extract purchase info from POST
-                "purchase_date":request.POST["purchasedate"],  # Extract purchase date from POST
-                "car_make": car.car_make,  # Extract car make from POST
-                "car_model": car.name,  # Extract car model from POST
-                "car_year": int(car.year.strftime("%Y")),  # Extract car year from POST
-            }
-            review=json.dumps(review,default=str)
-            new_payload1 = {}
-            new_payload1["review"] = review
-            print("\nURL:", review_post_url)
-            print("\nREVIEW:",review)
-            print("\nID:",id)
-            post_request(review_post_url, review, id = id)
-        return redirect("djangoapp:dealer_details", id = id)
-    
-    """
-@login_required
-def add_review(request, id):
-    context = {}
-    url = "http://localhost:3000/dealerships/get"
-    dealer = get_dealer_by_id_from_cf(url, id=id)
-    context["dealer"] = dealer
-
-    if request.method == 'GET':
-        # Get cars for the dealer
-        cars = CarModel.objects.all()
-        print(cars)
-        context["cars"] = cars
-        return render(request, 'djangoapp/add_review.html', context)
-
-    elif request.method == 'POST':
-        if request.user.is_authenticated:
-            username = request.user.username
-            car_id = request.POST.get("car")
-            car = CarModel.objects.get(pk=car_id)
-
-            payload = {
-                "time": datetime.utcnow().isoformat(),
-                "name": username,
-                "dealership": id,
-                "id": id,
-                "review": request.POST.get("content"),
-                "purchase": request.POST.get("purchasecheck") == 'on',
-                "purchase_date": request.POST.get("purchasedate"),
-                "car_make": car.car_make,
-                "car_model": car.name,
-                "car_year": int(car.year.strftime("%Y")),
-            }
-            new_payload ={"review": payload}
-            review_post_url = "http://localhost:5000/api/post_review"
-
-
-            print("\nURL:", review_post_url)
-            print("\nnew_payload:", new_payload)
-            print("\nID:", id)
-
-            post_request(review_post_url, new_payload, id=id)
-
+            post_request(review_post_url, payload, id=id)
         return redirect("djangoapp:dealer_details", id=id)
-
-    

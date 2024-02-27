@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.timezone import now
+from django.core import serializers
 import json
 
 
@@ -11,7 +12,7 @@ import json
 # - Any other fields you would like to include in car make model
 # - __str__ method to print a car make object
 class CarMake(models.Model):
-    name = models.CharField(null=False, max_length=50)
+    name = models.CharField(null=False, max_length=100, default='Make')
     description = models.CharField(max_length=500)
 
     def __str__(self):
@@ -32,10 +33,10 @@ class CarModel(models.Model):
         )
 
     car_make = models.ForeignKey(CarMake, on_delete=models.CASCADE)
-    name = models.CharField(null=False, max_length=50)
-    type = models.CharField(max_length=50, choices=CARTYPES)
-    year = models.DateField()
-    id = models.IntegerField(primary_key=True)
+    name = models.CharField(null=False, max_length=100)
+    type = models.CharField(null=False,max_length=50, choices=CARTYPES)
+    year = models.DateField(null=True)
+    dealerId = models.IntegerField(null=False, default=1)
     
 
     def __str__(self):
@@ -43,7 +44,7 @@ class CarModel(models.Model):
                 " Make Name: "+ self.car_make.name + \
                 " Type: " + self.type + \
                 " Year: " + str(self.year)+ \
-                " Dealer ID: " + str(self.id)
+                " Dealer ID: " + str(self.dealerId)
                 
 # <HINT> Create a plain Python class `CarDealer` to hold dealer data
 class CarDealer:
@@ -73,17 +74,17 @@ class CarDealer:
 
 # <HINT> Create a plain Python class `DealerReview` to hold review data
 class DealerReview:
-    def __init__(self, dealership, name, purchase, review, purchase_date, car_make, car_model, car_year,sentiment, id):
+    def __init__(self, dealership, name, purchase, review, purchase_date, car_make, car_model, car_year, sentiment, id ):
         self.dealership=dealership
         self.name=name
         self.purchase=purchase
         self.review=review
-        self.purchase_date=purchase_date
-        self.car_make=car_make
-        self.car_model=car_model
-        self.car_year=car_year
-        self.sentiment=sentiment 
-        self.id=id
+        self.purchase_date=""
+        self.car_make=""
+        self.car_model=""
+        self.car_year=""
+        self.sentiment=""
+        self.id=""
 
     def __str__(self):
         return "Review: " + self.review +\
@@ -91,3 +92,4 @@ class DealerReview:
                 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+    
